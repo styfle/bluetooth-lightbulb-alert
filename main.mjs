@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import noble from '@abandonware/noble';
 
 /**
- * @type {import('@abandonware/noble').Peripheral}
+ * @type {import('@abandonware/noble').Peripheral | null}
  */
 let cachedPeripheral = null;
 
@@ -51,7 +51,7 @@ async function getPeripheral() {
 async function turnOff() {
   const peripheral = await getPeripheral();
   console.log('got peripheral')
-  const {characteristics} = await peripheral.discoverSomeServicesAndCharacteristicsAsync(['ffe5'], ['ffe9']);
+  const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(['ffe5'], ['ffe9']);
   console.log('got characteristics')
   const characteristic = characteristics[0];
   console.log(`localName: ${peripheral.advertisement.localName}`);
@@ -67,7 +67,7 @@ async function turnOff() {
 async function turnOn(rgba) {
   const peripheral = await getPeripheral();
   console.log('got peripheral')
-  const {characteristics} = await peripheral.discoverSomeServicesAndCharacteristicsAsync(['ffe5'], ['ffe9']);
+  const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(['ffe5'], ['ffe9']);
   const characteristic = characteristics[0];
   console.log(`localName: ${peripheral.advertisement.localName}`);
   await characteristic.writeAsync(new Uint8Array([0xcc, 0x23, 0x33]), false); // turn on
@@ -82,16 +82,24 @@ await turnOff();
 const child = spawn('log', [
   'stream',
   '--predicate',
-  'eventMessage contains "Cameras changed to"'
+  'eventMessage contains "amera"'
 ])
 
 child.stdout.setEncoding('utf8')
 child.stdout.on('data', async (data) => {
   console.log('data is ', data)
-  if (data.includes('Cameras changed to []')) {
+  if (
+    data.includes('Cameras changed to []') ||
+    data.includes('RemoteCameraState false') ||
+    data.includes('ISP_PowerOffCamera_gated - requesting ISP power down')
+  ) {
     console.log('turning off')
     await turnOff()
-  } else if (data.includes('Cameras changed to [')) {
+  } else if (
+    data.includes('Cameras changed to [') ||
+    data.includes('RemoteCameraState true') ||
+    data.includes('ISP_PowerOnCamera_gated - requesting ISP power up')
+  ) {
     console.log('turning on')
     await turnOn([0xFF, 0x00, 0x00, 0x00]) // red
   }
